@@ -19,6 +19,8 @@ class ErdosRenyiFixedSparsity(GibbsSampling, MeanField):
 
     K:   Number of nodes
     v:   Scale of the gamma weight distribution from node to node
+    p:   Sparsity of the network
+    kappa: Weight matrix parameter..
     
     Parameters (Bayes):
     alpha   Shape parameter of gamma prior over v
