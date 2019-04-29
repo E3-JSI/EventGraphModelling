@@ -11,7 +11,7 @@ from pybasicbayes.util.stats import sample_discrete_from_log
 
 from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichlet, Beta
 
-# Clases: ER and ER_Ldist #
+# Classes: ER and ER_Ldist #
 
 class ErdosRenyiFixedSparsity(GibbsSampling, MeanField):
     """
