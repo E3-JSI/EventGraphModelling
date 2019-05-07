@@ -1,0 +1,9 @@
+{
+    "events_path":      "../../../../BigDataFinance/Data/EventRegistry/all_business_events_2018.json",
+    "word2vec_google" : "../../Data/word2vec/GoogleNews-vectors-negative300.bin.gz",
+    "word2vec_fb" :     "../../Data/word2vec/facebook-cc.en.300.bin",
+    "word2vec_wiki1" :  "../../Data/word2vec/wiki.en.vec",
+    "word2vec_wiki2" :  "../../Data/word2vec/wiki-news-300d-1M.vec",
+    "out_path"       :  "../../Data/compressed/"
+
+}
