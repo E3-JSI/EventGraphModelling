@@ -11,6 +11,9 @@ from pybasicbayes.util.stats import sample_discrete_from_log
 
 from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichlet, Beta
 
+def logistic(x): 
+    return 1./(1+np.exp(-x))
+
 # Classes: ER and ER_Ldist #
 class AdjacencyDistribution(Distribution):
     """
@@ -553,7 +556,3 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
         A,W = data
         self.resample_v(A, W)
         self.A_dist.resample(A)
-
-model = LatentDistanceAdjacencyModel(K=10, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = 0.5)
-
-import pdb; pdb.set_trace()
