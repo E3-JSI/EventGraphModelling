@@ -532,14 +532,13 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
     Network model with probability of connection given by
     a latent distance model. Depends on the graphistician package..
     """
-    def __init__(self, K, dim=2,
+    def __init__(self, K, p, dim=2,
                  v=None, alpha=1.0, beta=1.0,
                  kappa=1.0):
         super(LatentDistanceAdjacencyModel, self).\
-            __init__(K=K, v=v, alpha=alpha, beta=beta, kappa=kappa)
+            __init__(K=K, p = p, v=v, alpha=alpha, beta=beta, kappa=kappa)
 
         # Create a latent distance model for adjacency matrix
-        from graphistician.adjacency import LatentDistanceAdjacencyDistribution
         self.A_dist = LatentDistanceAdjacencyDistribution(K, dim=dim)
 
     @property
@@ -554,3 +553,7 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
         A,W = data
         self.resample_v(A, W)
         self.A_dist.resample(A)
+
+model = LatentDistanceAdjacencyModel(K=10, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = 0.5)
+
+import pdb; pdb.set_trace()
