@@ -129,13 +129,17 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
     l_n ~ N(0, sigma^2 I)
     A_{n', n} ~ Bern(\sigma(-||l_{n'} - l_{n}||_2^2))
     """
-    def __init__(self, N, dim=2, sigma=2.0, mu0=0.0, mu_self=0.0):
+    def __init__(self, N, L= None, 
+                 dim=2, sigma=1.0, mu0=0.0, mu_self=0.0):
         self.N = N
         self.dim = dim
         self.sigma = sigma
         self.mu_0 = mu0
         self.mu_self = mu_self
-        self.L = np.sqrt(self.sigma) * np.random.randn(N,dim)
+        if L is not None:
+            self.L = L
+        else: 
+            L = np.sqrt(self.sigma) * np.random.randn(N,dim)
 
         # Set HMC params
         self._L_step_sz = 0.01
@@ -157,7 +161,7 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
     def initialize_from_prior(self):
         self.mu_0 = np.random.randn()
         self.mu_self = np.random.randn()
-        self.L = np.sqrt(self.sigma) * np.random.randn(self.N, self.dim)
+        #self.L = np.sqrt(self.sigma) * np.random.randn(self.N, self.dim)
 
     def initialize_hypers(self, A):
         pass
@@ -294,7 +298,7 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
         :return:
         """
         # Sample the latent positions
-        self._resample_L(A)
+        # self._resample_L(A)
 
         # Resample the offsets
         self._resample_mu_0(A)
@@ -383,11 +387,11 @@ class ErdosRenyiFixedSparsity(GibbsSampling, MeanField):
     alpha   Shape parameter of gamma prior over v
     beta    Scale parameter of gamma prior over v
     """
-    def __init__(self, K, p, kappa=1.0, alpha=None, beta=None, v=None, allow_self_connections=True):
+    def __init__(self, K, p, L, kappa=1.0, alpha=None, beta=None, v=None, allow_self_connections=True):
         self.K = K
         self.p = p
         self.kappa = kappa
-
+        
         # Set the weight scale
         if alpha is beta is v is None:
             # If no parameters are specified, set v to be as large as possible
@@ -535,14 +539,14 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
     Network model with probability of connection given by
     a latent distance model. Depends on the graphistician package..
     """
-    def __init__(self, K, p, dim=2,
+    def __init__(self, K, p, L, dim=2,
                  v=None, alpha=1.0, beta=1.0,
                  kappa=1.0):
         super(LatentDistanceAdjacencyModel, self).\
-            __init__(K=K, p = p, v=v, alpha=alpha, beta=beta, kappa=kappa)
+            __init__(K=K, p = p, L = L, v=v, alpha=alpha, beta=beta, kappa=kappa)
 
         # Create a latent distance model for adjacency matrix
-        self.A_dist = LatentDistanceAdjacencyDistribution(K, dim=dim)
+        self.A_dist = LatentDistanceAdjacencyDistribution(K, L, dim=dim)
 
     @property
     def P(self):
