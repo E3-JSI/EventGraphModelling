@@ -139,8 +139,7 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
         if L is not None:
             self.L = L
         else: 
-            L = np.sqrt(self.sigma) * np.random.randn(N,dim)
-
+            self.L = np.sqrt(self.sigma) * np.random.randn(N,dim)
         # Set HMC params
         self._L_step_sz = 0.01
         self._L_accept_rate = 0.9
@@ -546,7 +545,7 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
             __init__(K=K, p = p, L = L, v=v, alpha=alpha, beta=beta, kappa=kappa)
 
         # Create a latent distance model for adjacency matrix
-        self.A_dist = LatentDistanceAdjacencyDistribution(K, L, dim=dim)
+        self.A_dist = LatentDistanceAdjacencyDistribution(N=K, L=L, dim=dim)
 
     @property
     def P(self):
