@@ -35,13 +35,17 @@ S_real = np.eye(subset,dtype=np.int)#events.head(subset)[300].values
 #S_real = [[itm] for _,itm in Counter(S_real).items()]
 K = subset
 
-import pdb; pdb.set_trace()
-
 ld_network = er.LatentDistanceAdjacencyModel(K=K, L = L, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
 
-test_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(K=K, dt_max=dt_max,network=ld_network)
+# A,W obtain
+weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
+weight_model.resample(S_real)
+# resample graph with new data 
+ld_network.resample(data=[A,W])
+# test_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(K=K, dt_max=dt_max,network=ld_network)
 
-test_model.add_data(S_real)
+# test_model.add_data(S_real)
+# test_model.resample_model()
 
-test_figure, test_handles = test_model.plot(color="#e41a1c", T_slice=(0,subset))
-plt.show()
+# test_figure, test_handles = test_model.plot(color="#e41a1c", T_slice=(0,subset))
+# plt.show()
