@@ -6,20 +6,20 @@ from collections import Counter
 import numpy as np
 
 # Parameters
-p = 0.5
-dt_max=200
+#p = 0.5
+#dt_max=200
 
-if False:
-    T = 100
-    network_hypers = {"p": p, "allow_self_connections": False}
+#if False:
+    #T = 100
+    #network_hypers = {"p": p, "allow_self_connections": False}
 
-    true_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(
-        K=K, dt_max=dt_max,
-        network_hypers=network_hypers)
-    assert true_model.check_stability()
+    #true_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(
+        #K=K, dt_max=dt_max,
+        #network_hypers=network_hypers)
+    #assert true_model.check_stability()
 
     # Synthetic data
-    S,R = true_model.generate(T=T, keep=True, print_interval=50)
+    #S,R = true_model.generate(T=T, keep=True, print_interval=50)
 
 # Real data
 settings = json.load(open("settings.json","r"))
