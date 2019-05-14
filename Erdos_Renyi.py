@@ -546,7 +546,7 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
 
         # Create a latent distance model for adjacency matrix
         self.A_dist = LatentDistanceAdjacencyDistribution(N=K, L=L, dim=dim)
-
+        
     @property
     def P(self):
         return self.A_dist.P
@@ -559,3 +559,167 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
         A,W = data
         self.resample_v(A, W)
         self.A_dist.resample(A)
+
+class SpikeAndSlabGammaWeights(GibbsSampling):
+    """
+    Encapsulates the KxK Bernoulli adjacency matrix and the
+    KxK gamma weight matrix. Implements Gibbs sampling given
+    the parent variables.
+    """
+    def __init__(self, model, parallel_resampling=True):
+        """
+        Initialize the spike-and-slab gamma weight model with either a
+        network object containing the prior or rho, alpha, and beta to
+        define an independent model.
+        """
+        self.model = None
+        self.K = model.K
+        # assert isinstance(network, GibbsNetwork), "network must be a GibbsNetwork object"
+        self.network = model
+
+        # Specify whether or not to resample the columns of A in parallel
+        self.parallel_resampling = parallel_resampling
+
+        # Initialize parameters A and W
+        self.A = np.ones((self.K, self.K))
+        self.W = np.zeros((self.K, self.K))
+        self.resample()
+
+    @property
+    def W_effective(self):
+        return self.A * self.W
+
+    def log_likelihood(self, x):
+        """
+        Compute the log likelihood of the given A and W
+        :param x:  an (A,W) tuple
+        :return:
+        """
+        A,W = x
+        assert isinstance(A, np.ndarray) and A.shape == (self.K,self.K), \
+            "A must be a KxK adjacency matrix"
+        assert isinstance(W, np.ndarray) and W.shape == (self.K,self.K), \
+            "W must be a KxK weight matrix"
+
+        # LL of A
+        rho = np.clip(self.network.P, 1e-32, 1-1e-32)
+        ll = (A * np.log(rho) + (1-A) * np.log(1-rho)).sum()
+        ll = np.nan_to_num(ll)
+
+        # Get the shape and scale parameters from the network model
+        kappa = self.network.kappa
+        v = self.network.V
+
+        # Add the LL of the gamma weights
+        lp_W = kappa * np.log(v) - gammaln(kappa) + \
+               (kappa-1) * np.log(W) - v * W
+        ll += (A*lp_W).sum()
+
+        return ll
+
+    def log_probability(self):
+        return self.log_likelihood((self.A, self.W))
+
+    def rvs(self,size=[]):
+        A = np.random.rand(self.K, self.K) < self.network.P
+        W = np.random.gamma(self.network.kappa, 1.0/self.network.V,
+                            size(self.K, self.K))
+
+        return A,W
+
+    def _joint_resample_A_W(self):
+        """
+        Not sure how to do this yet, but it would be nice to resample A
+        from its marginal distribution after integrating out W, and then
+        sample W | A.
+        :return:
+        """
+        raise NotImplementedError()
+
+    def _joblib_resample_A_given_W(self, data):
+        """
+        Resample A given W. This must be immediately followed by an
+        update of z | A, W. This  version uses joblib to parallelize
+        over columns of A.
+        :return:
+        """
+        # Use the module trick to avoid copying globals
+        import pyhawkes.internals.parallel_adjacency_resampling as par
+        par.model = self.model
+        par.data = data
+        par.K = self.model.K
+
+        if len(data) == 0:
+            self.A = np.random.rand(self.K, self.K) < self.network.P
+            return
+
+        # We can naively parallelize over receiving neurons, k2
+        # To avoid serializing and copying the data object, we
+        # manually extract the required arrays Sk, Fk, etc.
+        A_cols = Parallel(n_jobs=-1, backend="multiprocessing")(
+            delayed(par._resample_column_of_A)(k2)for k2 in range(self.K))
+        self.A = np.array(A_cols).T
+
+    def _resample_A_given_W(self, data):
+        """
+        Resample A given W. This must be immediately followed by an
+        update of z | A, W.
+        :return:
+        """
+        p = self.network.P
+        for k1 in range(self.K):
+            for k2 in range(self.K):
+                if self.model is None:
+                    ll0 = 0
+                    ll1 = 0
+                else:
+                    # Compute the log likelihood of the events given W and A=0
+                    self.A[k1,k2] = 0
+                    ll0 = sum([d.log_likelihood_single_process(k2) for d in data])
+
+                    # Compute the log likelihood of the events given W and A=1
+                    self.A[k1,k2] = 1
+                    ll1 = sum([d.log_likelihood_single_process(k2) for d in data])
+
+                # Sample A given conditional probability
+                lp0 = ll0 + np.log(1.0 - p[k1,k2])
+                lp1 = ll1 + np.log(p[k1,k2])
+                Z   = logsumexp([lp0, lp1])
+
+                # ln p(A=1) = ln (exp(lp1) / (exp(lp0) + exp(lp1)))
+                #           = lp1 - ln(exp(lp0) + exp(lp1))
+                #           = lp1 - Z
+                self.A[k1,k2] = np.log(np.random.rand()) < lp1 - Z
+
+    def resample_W_given_A_and_z(self, data=[]):
+        """
+        Resample the weights given A and z.
+        :return:
+        """
+        ss = np.zeros((2, self.K, self.K)) + \
+             sum([d.compute_weight_ss() for d in data])
+
+        # Account for whether or not a connection is present in N
+        ss[1] *= self.A
+
+        kappa_post = self.network.kappa + ss[0]
+        v_post  = self.network.V + ss[1 ]
+
+        self.W = np.atleast_1d(np.random.gamma(kappa_post, 1.0/v_post)).reshape((self.K, self.K))
+
+    def resample(self, data=[]):
+        """
+        Resample A and W given the parents
+        :param N:   A length-K vector specifying how many events occurred
+                    on each of the K processes
+        :param Z:   A TxKxKxB array of parent assignment counts
+        """
+        # Resample W | A
+        import pdb; pdb.set_trace()
+        self.resample_W_given_A_and_z(data)
+
+        # Resample A given W
+        if self.parallel_resampling:
+            self._joblib_resample_A_given_W(data)
+        else:
+            self._resample_A_given_W(data)
