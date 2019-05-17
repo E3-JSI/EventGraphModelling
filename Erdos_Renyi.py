@@ -696,6 +696,8 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         Resample the weights given A and z.
         :return:
         """
+        import pdb; pdb.set_trace()
+
         ss = np.zeros((2, self.K, self.K)) + \
              sum([d.compute_weight_ss() for d in data])
 
@@ -715,7 +717,6 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         :param Z:   A TxKxKxB array of parent assignment counts
         """
         # Resample W | A
-        import pdb; pdb.set_trace()
         self.resample_W_given_A_and_z(data)
 
         # Resample A given W
