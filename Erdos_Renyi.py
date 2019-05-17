@@ -14,6 +14,19 @@ from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichl
 def logistic(x): 
     return 1./(1+np.exp(-x))
 
+def get_W(data):
+    dim = len(data)
+    W = np.zeros((dim,dim))
+    
+    for i in range(dim):
+        for j in range(i+1,dim):
+            W[i,j] = np.linalg.norm(data[i] - data[j])
+    
+    W += W.T
+    W_norm = 100/np.linalg.norm(W) * W 
+
+    return W_norm
+
 # Classes: ER and ER_Ldist #
 class AdjacencyDistribution(Distribution):
     """
@@ -583,7 +596,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         # Initialize parameters A and W
         self.A = np.ones((self.K, self.K))
         self.W = np.zeros((self.K, self.K))
-        self.resample()
+        #self.resample()
 
     @property
     def W_effective(self):
@@ -690,6 +703,28 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
                 #           = lp1 - ln(exp(lp0) + exp(lp1))
                 #           = lp1 - Z
                 self.A[k1,k2] = np.log(np.random.rand()) < lp1 - Z
+    
+    def resample_W_given_A_new(self, ):
+        return 0
+      
+
+
+    def resample_A_given_W_new(self,W_real):
+        import pdb; pdb.set_trace()
+
+
+        ll = self.network.P < W_real
+
+        self.A = A[ll]
+                
+            
+
+            #self.A[k1,k2] = 
+
+    def resample_new(self,data=[]):
+        self.resample_W_given_W_real(data)
+        self.resample_A_given_W_new()
+
 
     def resample_W_given_A_and_z(self, data=[]):
         """

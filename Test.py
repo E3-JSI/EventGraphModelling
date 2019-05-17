@@ -7,8 +7,8 @@ import numpy as np
 import pdb 
 
 # Parameters
-#p = 0.5
-#dt_max=200
+p = 0.5
+dt_max=200
 
 #if False:
     #T = 100
@@ -32,18 +32,21 @@ events = pd.read_csv(events_embd,header=None)
 subset = 200
 
 L = events.head(subset).iloc[:,:-1].values
+
+W_real = er.get_W(L)
+
 S_real = np.eye(subset,dtype=np.int)#events.head(subset)[300].values
 #S_real = [[itm] for _,itm in Counter(S_real).items()]
 K = subset
-pdb.set_trace()
 # Define network
-ld_network = er.LatentDistanceAdjacencyModel(K=K, L = L, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
+ld_network = er.LatentDistanceAdjacencyModel(K=K, L = None, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
 
 # Define weight model
 weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
 
 # Add data
-weight_model.resample(S_real)
+weight_model.resample_A_given_W_new(W_real)
+
 # resample graph with new data 
 ld_network.resample(data=[weight_model.A,weight_model.W])
 # test_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(K=K, dt_max=dt_max,network=ld_network)
