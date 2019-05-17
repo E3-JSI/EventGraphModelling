@@ -672,7 +672,8 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         A_cols = Parallel(n_jobs=-1, backend="multiprocessing")(
             delayed(par._resample_column_of_A)(k2)for k2 in range(self.K))
         self.A = np.array(A_cols).T
-
+        pass
+        #related to Hawkes, so we don't need it here
     def _resample_A_given_W(self, data):
         """
         Resample A given W. This must be immediately followed by an
@@ -703,7 +704,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
                 #           = lp1 - ln(exp(lp0) + exp(lp1))
                 #           = lp1 - Z
                 self.A[k1,k2] = np.log(np.random.rand()) < lp1 - Z
-    
+         pass
     def resample_W_given_A_new(self, ):
         return 0
       
@@ -725,7 +726,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         self.resample_W_given_W_real(data)
         self.resample_A_given_W_new()
 
-
+    #Hawkes...
     def resample_W_given_A_and_z(self, data=[]):
         """
         Resample the weights given A and z.
@@ -743,7 +744,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         v_post  = self.network.V + ss[1 ]
 
         self.W = np.atleast_1d(np.random.gamma(kappa_post, 1.0/v_post)).reshape((self.K, self.K))
-
+        pass
     def resample(self, data=[]):
         """
         Resample A and W given the parents
