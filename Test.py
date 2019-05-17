@@ -4,6 +4,7 @@ import json
 import pandas as pd 
 from collections import Counter
 import numpy as np
+import pdb 
 
 # Parameters
 p = 0.5
@@ -34,14 +35,17 @@ L = events.head(subset).iloc[:,:-1].values
 S_real = np.eye(subset,dtype=np.int)#events.head(subset)[300].values
 #S_real = [[itm] for _,itm in Counter(S_real).items()]
 K = subset
-
+pdb.set_trace()
+# Define network
 ld_network = er.LatentDistanceAdjacencyModel(K=K, L = L, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
 
-# A,W obtain
+# Define weight model
 weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
+
+# Add data
 weight_model.resample(S_real)
 # resample graph with new data 
-ld_network.resample(data=[A,W])
+ld_network.resample(data=[weight_model.A,weight_model.W])
 # test_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(K=K, dt_max=dt_max,network=ld_network)
 
 # test_model.add_data(S_real)
