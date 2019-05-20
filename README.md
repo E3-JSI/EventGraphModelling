@@ -1,2 +1,2 @@
-# EventGraphModelling
-Repository of the event graph modelling effort
+# EventGraphModel
+Repository of the event graph model effort
