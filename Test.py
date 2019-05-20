@@ -5,6 +5,8 @@ import pandas as pd
 from collections import Counter
 import numpy as np
 import pdb 
+import networkx as nx 
+import matplotlib.pyplot as plt
 
 # Parameters
 p = 0.5
@@ -41,14 +43,15 @@ K = subset
 # Define network
 ld_network = er.LatentDistanceAdjacencyModel(K=K, L = None, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
 
+# resample graph with new data 
+ld_network.resample(data=[S_real,W_real])
+
 # Define weight model
 weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
 
 # Add data
-weight_model.resample_A_given_W_new(W_real)
+weight_model.resample_new(data=[S_real,W_real])
 
-# resample graph with new data 
-ld_network.resample(data=[weight_model.A,weight_model.W])
 # test_model = DiscreteTimeNetworkHawkesModelSpikeAndSlab(K=K, dt_max=dt_max,network=ld_network)
 
 # test_model.add_data(S_real)
@@ -56,3 +59,6 @@ ld_network.resample(data=[weight_model.A,weight_model.W])
 
 # test_figure, test_handles = test_model.plot(color="#e41a1c", T_slice=(0,subset))
 # plt.show()
+G = nx.from_numpy_matrix(weight_model.A)
+nx.draw(G,with_labels=True,with_edges=True)
+plt.show()

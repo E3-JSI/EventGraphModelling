@@ -10,6 +10,7 @@ from pybasicbayes.abstractions import BayesianDistribution, GibbsSampling, MeanF
 from pybasicbayes.util.stats import sample_discrete_from_log
 
 from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichlet, Beta
+import pdb 
 
 def logistic(x): 
     return 1./(1+np.exp(-x))
@@ -23,7 +24,7 @@ def get_W(data):
             W[i,j] = np.linalg.norm(data[i] - data[j])
     
     W += W.T
-    W_norm = 100/np.linalg.norm(W) * W 
+    W_norm = 1/np.linalg.norm(W) * W 
 
     return W_norm
 
@@ -310,12 +311,12 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
         :return:
         """
         # Sample the latent positions
-        # self._resample_L(A)
+        self._resample_L(A)
 
         # Resample the offsets
         self._resample_mu_0(A)
         self._resample_mu_self(A)
-        # self._resample_sigma()
+        self._resample_sigma()
 
     def _resample_L(self, A):
         """
@@ -573,6 +574,7 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
         self.resample_v(A, W)
         self.A_dist.resample(A)
 
+
 class SpikeAndSlabGammaWeights(GibbsSampling):
     """
     Encapsulates the KxK Bernoulli adjacency matrix and the
@@ -688,11 +690,11 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
                 else:
                     # Compute the log likelihood of the events given W and A=0
                     self.A[k1,k2] = 0
-                    ll0 = sum([d.log_likelihood_single_process(k2) for d in data])
+                    ll0 = self.log_likelihood([self.A,data[1]]) #sum([d.log_likelihood_single_process(k2) for d in data])
 
                     # Compute the log likelihood of the events given W and A=1
                     self.A[k1,k2] = 1
-                    ll1 = sum([d.log_likelihood_single_process(k2) for d in data])
+                    ll1 = self.log_likelihood([self.A,data[1]]) #sum([d.log_likelihood_single_process(k2) for d in data])
 
                 # Sample A given conditional probability
                 lp0 = ll0 + np.log(1.0 - p[k1,k2])
@@ -703,27 +705,11 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
                 #           = lp1 - ln(exp(lp0) + exp(lp1))
                 #           = lp1 - Z
                 self.A[k1,k2] = np.log(np.random.rand()) < lp1 - Z
-    
-    def resample_W_given_A_new(self, ):
-        return 0
-      
-
-
-    def resample_A_given_W_new(self,W_real):
-        import pdb; pdb.set_trace()
-
-
-        ll = self.network.P < W_real
-
-        self.A = A[ll]
-                
-            
-
-            #self.A[k1,k2] = 
-
+        
     def resample_new(self,data=[]):
-        self.resample_W_given_W_real(data)
-        self.resample_A_given_W_new()
+        self._resample_A_given_W(data)
+        #pdb.set_trace()
+        self.resample_W_given_A_and_z()
 
 
     def resample_W_given_A_and_z(self, data=[]):
@@ -731,10 +717,10 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         Resample the weights given A and z.
         :return:
         """
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
 
-        ss = np.zeros((2, self.K, self.K)) + \
-             sum([d.compute_weight_ss() for d in data])
+        ss = np.zeros((2, self.K, self.K)) # + \
+        #     sum([d.compute_weight_ss() for d in data])
 
         # Account for whether or not a connection is present in N
         ss[1] *= self.A
