@@ -13,7 +13,7 @@ from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichl
 import pdb 
 
 def logistic(x): 
-    return 1./(1+np.exp(-x))
+    return np.exp(x)#1./(1+np.exp(x))
 
 def get_W(data):
     dim = len(data)
@@ -21,7 +21,7 @@ def get_W(data):
     
     for i in range(dim):
         for j in range(i+1,dim):
-            W[i,j] = np.linalg.norm(data[i] - data[j])
+            W[i,j] = np.linalg.norm(data[i] - data[j],ord=1)
     
     W += W.T
     W_norm = 1/np.linalg.norm(W) * W 
@@ -144,7 +144,7 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
     A_{n', n} ~ Bern(\sigma(-||l_{n'} - l_{n}||_2^2))
     """
     def __init__(self, N, L= None, 
-                 dim=2, sigma=1.0, mu0=0.0, mu_self=0.0):
+                 dim=2, sigma=1.0, mu0=1.0, mu_self=0.0):
         self.N = N
         self.dim = dim
         self.sigma = sigma
@@ -161,7 +161,7 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
     @property
     def D(self):
         Mu = -((self.L[:,None,:] - self.L[None,:,:])**2).sum(2)
-        Mu += self.mu_0
+        Mu /= self.mu_0
         Mu += self.mu_self * np.eye(self.N)
 
         return Mu
@@ -209,10 +209,10 @@ class LatentDistanceAdjacencyDistribution(AdjacencyDistribution, GibbsSampling):
         D = - anp.sum((L1-L2)**2, axis=2)
 
         # Compute the logit probability
-        logit_P = D + mu_0 + mu_self * np.eye(self.N)
+        logit_P = D / mu_0 + mu_self * np.eye(self.N)
 
         # Take the logistic of the negative distance
-        P = 1.0 / (1+anp.exp(-logit_P))
+        P = anp.exp(logit_P) #1.0 / (1+anp.exp(-logit_P))
 
         # Compute the log likelihood
         ll = anp.sum(A * anp.log(P) + (1-A) * anp.log(1-P))
@@ -574,7 +574,6 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
         self.resample_v(A, W)
         self.A_dist.resample(A)
 
-
 class SpikeAndSlabGammaWeights(GibbsSampling):
     """
     Encapsulates the KxK Bernoulli adjacency matrix and the
@@ -626,8 +625,10 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         v = self.network.V
 
         # Add the LL of the gamma weights
-        lp_W = kappa * np.log(v) - gammaln(kappa) + \
-               (kappa-1) * np.log(W) - v * W
+
+        log_W = np.log(W)
+        log_W[np.isinf(log_W)] = 0 
+        lp_W = kappa * np.log(v) - gammaln(kappa) + (kappa-1) * log_W - v * W
         ll += (A*lp_W).sum()
 
         return ll
@@ -675,7 +676,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
             delayed(par._resample_column_of_A)(k2)for k2 in range(self.K))
         self.A = np.array(A_cols).T
         pass
-     
+        #related to Hawkes, so we don't need it here
     def _resample_A_given_W(self, data):
         """
         Resample A given W. This must be immediately followed by an
@@ -685,7 +686,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         p = self.network.P
         for k1 in range(self.K):
             for k2 in range(self.K):
-                if self.model is None:
+                if self.network is None:
                     ll0 = 0
                     ll1 = 0
                 else:
@@ -712,7 +713,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         #pdb.set_trace()
         self.resample_W_given_A_and_z()
 
-  
+    #Hawkes...
     def resample_W_given_A_and_z(self, data=[]):
         """
         Resample the weights given A and z.
@@ -730,7 +731,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         v_post  = self.network.V + ss[1 ]
 
         self.W = np.atleast_1d(np.random.gamma(kappa_post, 1.0/v_post)).reshape((self.K, self.K))
-       
+        pass
     def resample(self, data=[]):
         """
         Resample A and W given the parents
