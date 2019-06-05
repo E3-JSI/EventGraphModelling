@@ -698,15 +698,17 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
                     self.A[k1,k2] = 1
                     ll1 = self.log_likelihood([self.A,data[1]]) #sum([d.log_likelihood_single_process(k2) for d in data])
 
+                # Apply Bayes in a weird way 
                 # Sample A given conditional probability
                 lp0 = ll0 + np.log(1.0 - p[k1,k2])
                 lp1 = ll1 + np.log(p[k1,k2])
                 Z   = logsumexp([lp0, lp1])
-
+                f_aij = lp1 - Z
+                G = np.random.gamma(self.network.kappa, 1.0/self.network.v)
                 # ln p(A=1) = ln (exp(lp1) / (exp(lp0) + exp(lp1)))
                 #           = lp1 - ln(exp(lp0) + exp(lp1))
                 #           = lp1 - Z
-                self.A[k1,k2] = np.log(np.random.rand()) < lp1 - Z
+                self.A[k1,k2] = np.log(np.random.rand()) < f_aij/G 
         
     def resample_new(self,data=[]):
         self._resample_A_given_W(data)
@@ -732,6 +734,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
 
         self.W = np.atleast_1d(np.random.gamma(kappa_post, 1.0/v_post)).reshape((self.K, self.K))
         pass
+
     def resample(self, data=[]):
         """
         Resample A and W given the parents
