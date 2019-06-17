@@ -1,8 +1,6 @@
 import Erdos_Renyi as er 
-from pyhawkes.models import DiscreteTimeNetworkHawkesModelSpikeAndSlab
 import json 
 import pandas as pd 
-from collections import Counter
 import numpy as np
 import pdb 
 import networkx as nx 
@@ -31,17 +29,26 @@ W_real = er.get_W(L)
 # Set to minimum of limit and shape of data (due to starting period with less events)
 S_real = np.eye(K,dtype=np.int)
 
-# Define network
-ld_network = er.LatentDistanceAdjacencyModel(K=K, L = None, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
+def resample_graph(N,data,K):
+    ld_network = er.LatentDistanceAdjacencyModel(K=K, L = None, dim=2, v=None, alpha=1.0, beta=1.0,kappa=1.0,p = p)
 
-print("Resampling ld network")
-ld_network.resample(data=[S_real,W_real])
+    A,W = np.ones((K, K)), np.zeros((K, K))
 
-# Define weight model
-weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
+    for i in range(N):
+        if i%10 == 0: print(i)
+        ld_network.resample(data=data)
+        # Define weight model
+        weight_model = er.SpikeAndSlabGammaWeights(model = ld_network, parallel_resampling=False)
+        weight_model.A = A 
+        weight_model.W = W 
 
-print("Resampling weight model")
-weight_model.resample_new(data=[S_real,W_real])
+        weight_model.resample_new(data=data)
+
+        A,W = [weight_model.A,weight_model.W]
+
+    return weight_model
+    
+weight_model = resample_graph(N=20,data=[S_real,W_real],K=K)
 
 # Print adjecancy matrix and it's properties 
 print(weight_model.A)
