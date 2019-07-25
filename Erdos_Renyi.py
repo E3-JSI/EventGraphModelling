@@ -3,14 +3,15 @@
 import abc
 
 import numpy as np
-from scipy.special import gammaln, psi
-from scipy.misc import logsumexp
+from scipy.special import gammaln, psi,logsumexp
+from scipy.spatial.distance import cosine 
 
 from pybasicbayes.abstractions import BayesianDistribution, GibbsSampling, MeanField, MeanFieldSVI, Distribution
 from pybasicbayes.util.stats import sample_discrete_from_log
 
 from pyhawkes.internals.distributions import Discrete, Bernoulli, Gamma, Dirichlet, Beta
 import pdb 
+from joblib import Parallel,delayed
 
 def logistic(x): 
     return np.exp(x)#1./(1+np.exp(x))
@@ -21,14 +22,13 @@ def get_W(data):
     
     for i in range(dim):
         for j in range(i+1,dim):
-            W[i,j] = np.linalg.norm(data[i] - data[j],ord=1)
-    
+            W[i,j] = np.linalg.norm(data[i] - data[j],ord=2)
+            #W[i,j] = cosine(data[i],data[j])
     W += W.T
-    W_norm = 1/np.linalg.norm(W) * W 
+    W_norm = 1/np.max(W) * W 
 
     return W_norm
 
-# Classes: ER and ER_Ldist #
 class AdjacencyDistribution(Distribution):
     """
     Base class for a distribution over adjacency matrices.
@@ -572,7 +572,7 @@ class LatentDistanceAdjacencyModel(ErdosRenyiFixedSparsity):
     def resample(self, data=[]):
         A,W = data
         self.resample_v(A, W)
-        self.A_dist.resample(A)
+        self.A_dist.resample(W)
 
 class SpikeAndSlabGammaWeights(GibbsSampling):
     """
@@ -617,6 +617,7 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
 
         # LL of A
         rho = np.clip(self.network.P, 1e-32, 1-1e-32)
+        # A ~ Bern(network.p), so this is just log of probability function
         ll = (A * np.log(rho) + (1-A) * np.log(1-rho)).sum()
         ll = np.nan_to_num(ll)
 
@@ -624,11 +625,14 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         kappa = self.network.kappa
         v = self.network.V
 
-        # Add the LL of the gamma weights
-
+        #Check for problems with zero elements
         log_W = np.log(W)
         log_W[np.isinf(log_W)] = 0 
-        lp_W = kappa * np.log(v) - gammaln(kappa) + (kappa-1) * log_W - v * W
+        #W ~ Gamma(kappa,1/v), so this is just log of probability function        
+        lp_W = -0.5*(np.log(2*np.pi) + W*W)
+        #(kappa-1) * log_W - v * W #kappa * np.log(v) - gammaln(kappa)
+
+        # Add the LL of the gamma weights
         ll += (A*lp_W).sum()
 
         return ll
@@ -643,15 +647,6 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
 
         return A,W
 
-    def _joint_resample_A_W(self):
-        """
-        Not sure how to do this yet, but it would be nice to resample A
-        from its marginal distribution after integrating out W, and then
-        sample W | A.
-        :return:
-        """
-        raise NotImplementedError()
-
     def _joblib_resample_A_given_W(self, data):
         """
         Resample A given W. This must be immediately followed by an
@@ -660,10 +655,10 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
         :return:
         """
         # Use the module trick to avoid copying globals
-        import pyhawkes.internals.parallel_adjacency_resampling as par
-        par.model = self.model
+        import parallel_adj_resampling as par
+        par.network = self.network
         par.data = data
-        par.K = self.model.K
+        par.K = self.K
 
         if len(data) == 0:
             self.A = np.random.rand(self.K, self.K) < self.network.P
@@ -700,18 +695,31 @@ class SpikeAndSlabGammaWeights(GibbsSampling):
 
                 # Apply Bayes in a weird way 
                 # Sample A given conditional probability
-                lp0 = ll0 + np.log(1.0 - p[k1,k2])
-                lp1 = ll1 + np.log(p[k1,k2])
+                if p[k1,k2] == 1:
+                    lp1 = 1 
+                    lp0 = 0
+                elif p[k1,k2] == 0:
+                    lp1 = 0 
+                    lp0 = 1
+                else:    
+                    lp0 = ll0 + np.log(1.0 - p[k1,k2])
+                    lp1 = ll1 + np.log(p[k1,k2])
+
                 Z   = logsumexp([lp0, lp1])
                 f_aij = lp1 - Z
-                G = np.random.gamma(self.network.kappa, 1.0/self.network.v)
+                # G = np.random.gamma(self.network.kappa, 1.0/self.network.v)
                 # ln p(A=1) = ln (exp(lp1) / (exp(lp0) + exp(lp1)))
                 #           = lp1 - ln(exp(lp0) + exp(lp1))
                 #           = lp1 - Z
-                self.A[k1,k2] = np.log(np.random.rand()) < f_aij/G 
-        
+                self.A[k1,k2] = f_aij > np.log(1-data[1][k1][k2])  #np.log(np.random.rand()) < f_aij/G 
+                                
     def resample_new(self,data=[]):
-        self._resample_A_given_W(data)
+        # Resample A given W
+        if self.parallel_resampling:
+            self._joblib_resample_A_given_W(data)
+        else:
+            self._resample_A_given_W(data)
+
         #pdb.set_trace()
         self.resample_W_given_A_and_z()
 
