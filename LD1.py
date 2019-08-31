@@ -61,12 +61,12 @@ def A_gph(self, W)
      """
      A = self.A
      W = self.A
-     n = self.W[n1,n2]
-     p = self.p    #kaj dat za p??
+     
 
      for n1 in range(self.N):
             for n2 in range(self.N):
-                A[n1,n2] = np.random.binomial(n,p,size=none)
+                p = self.W[n1,n2]
+                A[n1,n2] = np.random.binomial(1,p,size=none)
 
     return A
 
