@@ -63,7 +63,7 @@ stocks = pd.read_csv("../../Data/others/SP500constituents.csv")
 
 api = "" # fill in your own
 
-er_user = ER.EventRegistry(apiKey = api_miha)
+er_user = ER.EventRegistry(apiKey = api)
 dateStart = "2014-01-01"
 dateEnd = "2019-01-01"
 
